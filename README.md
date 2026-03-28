@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # SuperMap iDesktopX Skill
 
 基于 SuperMap iObjectsPy 和 MCP 的桌面端 GIS 数据处理自动化 Skill。
@@ -119,3 +120,7 @@ kruie
 
 - [supermap-mcp-server](https://github.com/kruie/supermap-mcp-server) - MCP 服务器
 - [supermap-iserver-skill](https://github.com/kruie/supermap-iserver-skill) - iServer Skill
+=======
+# supermap-idesktop-skill
+SuperMap iDesktopX Skill - 桌面端 GIS 数据处理自动化（基于 iObjectsPy + MCP）
+>>>>>>> 6c1cac2d9c584bd36cfdf82eb3e1621f26272ed6

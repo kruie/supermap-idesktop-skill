@@ -1,0 +1,69 @@
+{
+  "name": "supermap-idesktop-skill",
+  "version": "1.0.0",
+  "description": "SuperMap iDesktopX Skill - 桌面端 GIS 数据处理自动化（基于 iObjectsPy + MCP）",
+  "author": "kruie",
+  "license": "MIT",
+  "type": "skill",
+  "dependencies": {
+    "mcp": [
+      "supermap-mcp-server"
+    ],
+    "python": [
+      "iObjectsPy>=11.1.0",
+      "numpy>=1.24.0",
+      "pandas>=2.0.0"
+    ],
+    "system": [
+      "SuperMap iDesktopX 11i/12i"
+    ]
+  },
+  "triggers": [
+    "iDesktopX",
+    "SuperMap",
+    "UDB",
+    "UDBX",
+    "GIS",
+    "空间分析",
+    "地图制图",
+    "Shapefile",
+    "GeoJSON",
+    "拓扑检查",
+    "三维分析"
+  ],
+  "capabilities": [
+    "data_management",
+    "data_import_export",
+    "spatial_analysis",
+    "spatial_query",
+    "data_quality_check",
+    "map_cartography",
+    "3d_analysis",
+    "batch_processing"
+  ],
+  "configuration": {
+    "license_path": {
+      "description": "SuperMap license file path",
+      "env": "SUPERMAP_LICENSE",
+      "required": true
+    },
+    "idesktop_path": {
+      "description": "iDesktopX installation path",
+      "env": "SUPERMAP_HOME",
+      "required": false
+    }
+  },
+  "documentation": {
+    "main": "SKILL.md",
+    "references": [
+      "references/environment.md",
+      "references/gis-knowledge.md",
+      "references/iobjectspy-api.md"
+    ]
+  },
+  "scripts": {
+    "init": "scripts/idesktop_init.py",
+    "launcher": "scripts/idesktop_launcher.py",
+    "data_api": "scripts/idesktop_data.py"
+  }
+}

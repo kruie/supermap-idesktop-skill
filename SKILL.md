@@ -111,7 +111,8 @@ SuperMap iDesktopX 自动化采用 **MCP + Skill 双层架构**:
 │  ├─ 工作流指导: 串联 MCP 工具完成复杂任务           │
 │  ├─ 决策支持: 帮助选择合适的工具和参数              │
 │  ├─ 补充功能: MCP 未覆盖的高级功能                  │
-│  └─ scripts/: 实用工具脚本和批处理                 │
+│  ├─ examples/: 4 个典型场景示例 (buffer/overlay/DEM/batch)│
+│  ├─ scripts/: 实用工具脚本和批处理                 │
 │                                                      │
 └─────────────────────────────────────────────────────┘
 ```
@@ -129,6 +130,19 @@ SuperMap iDesktopX 自动化采用 **MCP + Skill 双层架构**:
 | 3D 数据处理 (OSGB/LAS) | **iObjectsPy API** | MCP 未覆盖 |
 | GUI 操作可视化 | **iDesktopX GUI** | 直观交互 |
 | 属性查询筛选 | **iObjectsPy API** | MCP 缺少 SQL 查询 |
+
+---
+
+## 示例场景 (examples/)
+
+| 编号 | 场景 | 难度 | 涉及工具 |
+|------|------|------|---------|
+| [01](examples/01_buffer_analysis.md) | 缓冲区分析 — POI 服务范围 | ⭐ | import_shapefile, create_buffer, query_dataset, export_geojson |
+| [02](examples/02_overlay_analysis.md) | 叠加分析 — 土地适宜性评估 | ⭐⭐ | batch_import, overlay, clip_data, batch_export |
+| [03](examples/03_dem_analysis.md) | DEM 地形分析 — 坡度适宜性 | ⭐⭐ | import_tiff, calculate_slope, reclassify, idw_interpolate |
+| [04](examples/04_batch_processing.md) | 批量数据处理 — 多格式入库出库 | ⭐ | batch_import, batch_export, list_datasets, delete_dataset |
+
+> 每个示例包含完整的 MCP 工具调用流程，可直接修改路径参数后使用。
 
 ---
 

@@ -110,6 +110,23 @@ print(spy.__version__)
 
 ## License 管理
 
+### License 文件存储位置
+
+SuperMap 的 License 文件统一存储在以下标准目录：
+
+```
+C:\Program Files\Common Files\SuperMap\License\
+```
+
+该目录下的常见 License 文件类型：
+
+| 扩展名 | 说明 |
+|--------|------|
+| `.lic` / `.licx` / `.lic12` | 正式授权文件（由 License Center 生成） |
+| `.udlx` | 试用授权文件 |
+
+> **环境变量**：可通过 `SUPERMAP_LICENSE` 环境变量自定义 License 目录路径。MCP Server 会优先读取该变量，未设置时使用上述默认路径。
+
 ### License Center
 
 SuperMap 提供独立的 License Center 应用管理授权：

@@ -83,10 +83,10 @@ description: This skill should be used when the user wants to operate, automate,
 ├─ 数据质量检查?
 │   ├─ 拓扑检查 → scripts/query_sql.py 或 iObjectsPy API
 │   ├─ 几何错误修复 → references/data-quality.md
-│   ├─ 重复要素删除 → scripts/query_sql.py
+│   ├─ 重复要素删除 → MCP: query_dataset + delete_dataset
 │   └─ 属性验证 → references/data-quality.md
 └─ 空间查询?
-    ├─ 空间关系查询 → scripts/query_sql.py: query_by_spatial_relation()
+    ├─ 属性查询筛选 → MCP: query_dataset (支持 SQL WHERE)
     ├─ 最近邻查询 → scripts/query_sql.py: query_nearest()
     ├─ 距离查询 → scripts/query_sql.py: query_by_distance()
     ├─ 多边形内查询 → scripts/query_sql.py: query_within_polygon()
@@ -103,7 +103,7 @@ SuperMap iDesktopX 自动化采用 **MCP + Skill 双层架构**:
 ├─────────────────────────────────────────────────────┤
 │                                                      │
 │  MCP Server (核心工具层 - 已配置可用)                │
-│  ├─ 50+ 标准化工具 (数据操作、空间分析、地图制图)   │
+│  ├─ 55 个标准化工具 (数据操作、空间分析、地图制图)    │
 │  ├─ 通过 mcp:// 前缀调用                            │
 │  └─ 无需初始化,直接可用                              │
 │                                                      │
@@ -122,6 +122,8 @@ SuperMap iDesktopX 自动化采用 **MCP + Skill 双层架构**:
 |------|----------|------|
 | 单步数据操作 (导入/导出) | **MCP 工具** | 简单快速,无需代码 |
 | 标准空间分析 (缓冲/叠加) | **MCP 工具** | 参数清晰,结果可控 |
+| 属性查询/数据筛选 | **MCP 工具** | `query_dataset` 支持 SQL、字段选择、排序 |
+| 删除数据集 | **MCP 工具** | `delete_dataset` |
 | 批量处理 (100+ 文件) | **iObjectsPy API + 循环** | 灵活控制,性能更好 |
 | 复杂多步骤工作流 | **MCP + Skill** | 组合工具,清晰流程 |
 | 3D 数据处理 (OSGB/LAS) | **iObjectsPy API** | MCP 未覆盖 |
@@ -525,8 +527,11 @@ batch_export(
 |------|------|
 | `create_udbx_datasource` | 创建 UDBX 数据源 |
 | `open_udbx_datasource` | 打开 UDBX 数据源 |
+| `create_memory_datasource` | 创建内存数据源（临时） |
 | `list_datasets` | 列出数据集中的所有数据集 |
 | `get_dataset_info` | 获取数据集详细信息 |
+| `query_dataset` | SQL 属性查询（支持 WHERE、字段选择、排序） |
+| `delete_dataset` | 删除数据集 |
 
 ### 数据导入
 | 工具 | 支持格式 |
@@ -580,7 +585,6 @@ batch_export(
 
 | 功能 | 使用方式 | 参考文档 |
 |------|----------|----------|
-| **SQL 属性查询** | `scripts/query_sql.py`: query_dataset() | 见下方示例 |
 | **空间关系查询** | `scripts/query_sql.py`: query_by_spatial_relation() | 相交/包含/相离 |
 | **最近邻查询** | `scripts/query_sql.py`: query_nearest() | 按 k 个最近邻排序 |
 | **距离查询** | `scripts/query_sql.py`: query_by_distance() | 指定距离范围内 |
@@ -1020,277 +1024,7 @@ A: MCP 工具适合单步操作和标准分析;复杂批处理和多步骤工作
 
 ---
 
-## Workflow
-
-### Step 1: Choose the approach
-
-| Task | Recommended approach |
-|------|---------------------|
-| Read/write data, spatial analysis, batch processing | **iObjectsPy API** (no GUI needed) |
-| Visualize maps, use the map editor | **Launch iDesktopX + Python window** |
-| Click GUI menus/buttons | **GUI automation** (requires pywinauto) |
-| Import/export data | **iObjectsPy API** (fastest) |
-
-### Step 2: Verify the Python environment
-
-```bash
-python --version
-pip show iobjectspy
-```
-
-If iObjectsPy is not installed:
-```bash
-# Navigate to the bin_python directory inside iDesktopX installation
-cd <iDesktopX_install_dir>\bin_python
-pip install .
-```
-
-### Step 3: Initialize iObjectsPy
-
-Every standalone iObjectsPy script must call `set_iobjects_java_path()` before use:
-
-```python
-import iobjectspy as spy
-spy.set_iobjects_java_path(r"<iDesktopX_install_dir>\bin")
-```
-
-Or use the bundled helper (auto-discovers install path):
-```python
-import sys
-sys.path.insert(0, r"<path_to_skill>\scripts")
-import idesktop_init  # auto-initializes on import
-```
-
----
-
-## Core Operations
-
-### 1. Launch iDesktopX
-
-```bat
-cd /d <iDesktopX_install_dir>
-startup.bat
-```
-
-Using the bundled launcher script:
-```python
-from scripts.idesktop_launcher import launch_idesktop, is_idesktop_running
-if not is_idesktop_running():
-    launch_idesktop(wait_seconds=30)
-```
-
-### 2. Open workspace / datasource
-
-```python
-import iobjectspy as spy
-from iobjectspy import (Workspace, WorkspaceConnectionInfo, WorkspaceType,
-                        DatasourceConnectionInfo, EngineType)
-
-# Open workspace
-ws = Workspace()
-conn = WorkspaceConnectionInfo()
-conn.server = r"D:\data\MyProject.smwu"
-ws.open(conn)
-
-# Open UDB datasource
-ds_conn = DatasourceConnectionInfo()
-ds_conn.server = r"D:\data\world.udb"
-ds_conn.engine_type = EngineType.UDB
-ds = spy.open_datasource(ds_conn)
-
-# Access dataset
-dataset = ds["Countries"]
-```
-
-### 3. Query / read features
-
-```python
-# Iterate all features
-rs = dataset.get_recordset(True)   # True = read-only
-rs.move_first()
-while not rs.is_EOF:
-    name = rs.get_field_value("Name")
-    geom = rs.get_geometry()
-    rs.move_next()
-rs.close()
-
-# SQL query
-rs = dataset.query("Population > 1000000")
-
-# Convert to DataFrame (requires pandas)
-df = spy.datasetvector_to_df(dataset)
-```
-
-### 4. Spatial analysis
-
-Full API reference: `references/iobjectspy-api.md`
-
-```python
-# Buffer analysis
-spy.create_buffer(source_dataset=ds["Cities"], left_distance=5000,
-                  out_datasource=ds, out_dataset="CitiesBuffer")
-
-# Overlay (intersect)
-spy.overlay(source_dataset=ds["Layer1"], operate_dataset=ds["Layer2"],
-            overlay_mode=OverlayMode.INTERSECT,
-            out_datasource=ds, out_dataset="Result")
-
-# Clip
-spy.clip_vector(source_dataset=ds["Big"], clip_dataset=ds["Boundary"],
-                out_datasource=ds, out_dataset="Clipped")
-
-# Dissolve
-spy.dissolve(ds["Towns"], dissolve_fields=["Province"],
-             out_datasource=ds, out_dataset="Provinces")
-
-# Kernel density
-spy.kernel_density(ds["Points"], search_radius=5000, cell_size=100,
-                   out_datasource=ds, out_dataset="Density")
-```
-
-### 5. Import / export data
-
-```python
-# Import
-spy.import_shape(r"D:\data\boundary.shp", out_datasource=ds)
-spy.import_geojson(r"D:\data\points.geojson", out_datasource=ds)
-
-# Export
-spy.export_to_shape(ds["Countries"], r"D:\output\countries.shp")
-spy.export_to_geojson(ds["Cities"], r"D:\output\cities.geojson")
-```
-
-Batch import using the bundled helper:
-```python
-from scripts.idesktop_data import batch_import
-batch_import(r"D:\data\input", ds, file_pattern="*.shp")
-```
-
-### 6. Batch data processing
-
-```python
-import os, iobjectspy as spy
-
-for filename in os.listdir(input_dir):
-    if filename.endswith(".shp"):
-        filepath = os.path.join(input_dir, filename)
-        spy.import_shape(filepath, out_datasource=out_ds,
-                         out_dataset=os.path.splitext(filename)[0])
-        print("Imported:", filename)
-```
-
-### 7. 3D data processing
-
-Full guide: `references/3d-processing.md`
-
-```python
-# Import oblique photography (OSGB)
-spy.import_osgb(r"D:\data\oblique.osgb", out_datasource=ds)
-
-# Import point cloud (LAS)
-spy.import_las(r"D:\data\pointcloud.las", out_datasource=ds)
-
-# Visibility analysis
-spy.visibility_analysis(observer_point=(116.4, 39.9, 50),
-                        scene=spy.get_scene(ws, "MyScene"))
-```
-
-### 8. Map cartography & thematic maps
-
-Full guide: `references/mapping-thematic.md`
-
-```python
-from iobjectspy import mapping
-
-# Get map object
-map_obj = spy.get_map(ws, "WorldMap")
-
-# Thematic maps, coordinate systems, layout printing:
-# see references/mapping-thematic.md
-```
-
-### 9. GUI automation
-
-Full guide: `references/gui-automation.md`
-
-```python
-# pip install pywinauto pyautogui Pillow
-from pywinauto.application import Application
-
-# Connect to running iDesktopX
-app = Application(backend="uia").connect(title_re=".*iDesktopX.*")
-main_win = app.top_window()
-# Note: iDesktopX is Java-based (SunAwtFrame); UIA control access is limited.
-# Use coordinate-based clicking (pyautogui) for most operations.
-```
-
----
-
-## Using iDesktopX Built-in Python Window
-
-The most reliable way to run scripts — the built-in Python window has iObjectsPy pre-configured and runs with a valid License automatically:
-
-1. Open iDesktopX
-2. Menu: **Start → Browse → Python**
-3. Type code directly, or click **"Execute Python File"** to load a `.py` script
-4. Call `from iobjectspy import *` directly — no initialization needed
-
----
-
-## Quick Reference
-
-| Task | Reference | Key API |
-|------|-----------|---------|
-| Datasource / dataset management | `gis-knowledge.md` §3-4 | `open_datasource` / `ds["Name"]` |
-| Import Shapefile / GeoJSON | `iobjectspy-api.md` §8 | `spy.import_shape` / `import_geojson` |
-| Export vector data | `iobjectspy-api.md` §8 | `spy.export_to_shape` / `export_to_geojson` |
-| Buffer analysis | `iobjectspy-api.md` §7.1 | `spy.create_buffer` |
-| Overlay analysis | `iobjectspy-api.md` §7.2 | `spy.overlay` |
-| DEM slope / aspect | `iobjectspy-api.md` §7.4 | `spy.calculate_slope` / `calculate_aspect` |
-| Thematic maps | `mapping-thematic.md` §3 | `ThematicLayerSingleValue` etc. |
-| Coordinate system conversion | `mapping-thematic.md` §5 | `spy.prj_coord_sys_trans` |
-| 3D scene operations | `3d-processing.md` §2 | `spy.get_scene` |
-| Oblique photography (OSGB) | `3d-processing.md` §4 | `spy.import_osgb` |
-| Point cloud (LAS) | `3d-processing.md` §5 | `spy.import_las` |
-| 3D visibility analysis | `3d-processing.md` §7.1 | `spy.visibility_analysis` |
-| Batch processing | `iobjectspy-api.md` §15 | loop + `spy.*` |
-| Launch iDesktopX | `scripts/idesktop_launcher.py` | `launch_idesktop()` |
-
----
-
-## Reference Documents
-
-| File | Contents |
-|------|----------|
-| `references/environment.md` | Installation paths, Python setup, License |
-| `references/iobjectspy-api.md` | Complete iObjectsPy API reference |
-| `references/gis-knowledge.md` | GIS fundamentals, data structures, analysis methods |
-| `references/3d-processing.md` | 3D data: DEM, OSGB, LAS, BIM, 3D analysis |
-| `references/mapping-thematic.md` | Thematic maps, symbology, CRS, map output |
-| `references/gui-automation.md` | GUI automation with pywinauto/pyautogui |
-
----
-
-## FAQ
-
-**Q: "iObjectsPy not found" error**  
-Install iObjectsPy from the `bin_python/` directory inside the iDesktopX installation:
-```bash
-cd <iDesktopX_install_dir>\bin_python
-pip install .
-```
-
-**Q: "Java gateway process exited" error**  
-The path passed to `set_iobjects_java_path()` is incorrect. It must point to the `bin/` directory that contains `SuperMap.iObjects.Java.jar`.
-
-**Q: "hasp_feature_not_found" / License error when running standalone**  
-iObjectsPy standalone execution requires a separate iObjectsPy License. Use the iDesktopX built-in Python window instead — it inherits the iDesktopX License automatically.
-
-**Q: No Python environment available**  
-Use the MiniConda bundled in the SuperMap AI Extension package (`support/MiniConda/conda/python.exe`).
-
-**Q: threeddesigner module import error**  
-The `threeddesigner` module requires iObjectsPy 2025 or later. Ensure the correct version is installed from `bin_python/`.
-
-**Q: Oblique photography not displayed in 3D scene**  
-Verify that the OSGB directory contains a `metadata.xml` file and that the coordinate system is correctly configured.
+**Skill 版本**: v2.1
+**更新时间**: 2026-03-29
+**适用版本**: SuperMap iDesktopX 2025 (11.x)
+**MCP Server 版本**: v2.1 (55 工具)

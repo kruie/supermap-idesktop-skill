@@ -5,6 +5,25 @@ description: This skill should be used when the user wants to operate, automate,
 
 # SuperMap iDesktopX Skill
 
+## ⚠️ 核心原则
+
+**1. MCP 工具优先**: 所有可能的操作，首先检查是否有对应的 MCP 工具。
+   - 有 MCP 工具 → 直接调用，不写 Python 脚本
+   - 无 MCP 工具 → 使用 Skill scripts（scripts/ 目录）
+   - scripts 不够 → 才考虑写 iObjectsPy 代码
+
+**2. 禁止绕道**: 不要为了使用 MCP 工具而编写 Python 脚本来调用它。
+   - ❌ 错误: 写 `supermap_mcp_client.py` 然后执行它
+   - ✅ 正确: 直接通过 MCP 协议调用 `mcp_call_tool("import_shapefile", {...})`
+
+**3. 失败降级**: MCP 工具调用失败时，按以下顺序降级：
+   1. 检查参数是否正确
+   2. 尝试 `check_mcp_health` 诊断
+   3. 降级到 iObjectsPy API
+   4. 向用户报告失败原因
+
+---
+
 ## 快速开始 - 决策树
 
 **Q: 你想做什么?** (使用下方决策树快速找到合适的工具)
@@ -151,16 +170,22 @@ SuperMap iDesktopX 自动化采用 **MCP + Skill 双层架构**:
 
 ### MCP vs iObjectsPy API 何时使用?
 
-| 场景 | 推荐方案 | 原因 |
-|------|----------|------|
-| 单步数据操作 (导入/导出) | **MCP 工具** | 简单快速,无需代码 |
-| 标准空间分析 (缓冲/叠加) | **MCP 工具** | 参数清晰,结果可控 |
-| 属性查询/数据筛选 | **MCP 工具** | `query_dataset` 支持 SQL、字段选择、排序 |
-| 删除数据集 | **MCP 工具** | `delete_dataset` |
-| 批量处理 (100+ 文件) | **iObjectsPy API + 循环** | 灵活控制,性能更好 |
-| 复杂多步骤工作流 | **MCP + Skill** | 组合工具,清晰流程 |
-| 3D 数据处理 (OSGB/LAS) | **iObjectsPy API** | MCP 未覆盖 |
-| GUI 操作可视化 | **iDesktopX GUI** | 直观交互 |
+| 场景 | 推荐方案 | 可用 MCP 工具 | 原因 |
+|------|----------|-------------|------|
+| 单步数据操作 (导入/导出) | **MCP 工具** | `import_*`, `export_*` | 参数清晰，结果可控 |
+| 标准空间分析 (缓冲/叠加) | **MCP 工具** | `create_buffer`, `overlay` 等 14 个 | 无需写代码 |
+| SQL 属性查询 | **MCP 工具** | `query_dataset` | 支持 WHERE/字段选择/排序/限制 |
+| 数据集/字段管理 | **MCP 工具** | `create_dataset`, `add_field`, `calculate_field` | v3.0 新增 |
+| 坐标系查看/转换 | **MCP 工具** | `get_coordinate_system`, `reproject_dataset` | v3.0 新增 |
+| 工作空间操作 | **MCP 工具** | `open_workspace`, `save_workspace`, `get_workspace_info` | v3.0 新增 |
+| 地图出图 | **MCP 工具** | `add_layer_to_map`, `export_map_image` | v3.0 新增 |
+| 几何计算 | **MCP 工具** | `compute_distance`, `compute_geodesic_area` | v3.0 新增 |
+| 空间关系查询 (相交/包含) | **Skill scripts** | `scripts/query_sql.py` | MCP 未覆盖空间查询 |
+| 最近邻/距离/路径查询 | **Skill scripts** | `scripts/query_sql.py` | MCP 未覆盖 |
+| 批量处理 (100+ 文件) | **iObjectsPy API** + 循环 | — | 灵活控制，性能更好 |
+| 3D 数据处理 (OSGB/LAS/S3M) | **iObjectsPy API** | — | MCP 未覆盖 |
+| 专题图制作 (符号化) | **iObjectsPy API** | — | MCP 未覆盖 |
+| GUI 自动化 | **iDesktopX GUI** | — | 需要可视化交互 |
 
 ---
 
@@ -687,6 +712,9 @@ batch_export(
 
 ## MCP 未覆盖功能 (使用 Skill 补充)
 
+> 以下功能 MCP 工具**暂未覆盖**，使用 Skill 的 scripts/ 或 references/ 补充。
+> 已有 MCP 工具的功能（如坐标转换 `reproject_dataset`、工作空间管理、SQL 查询 `query_dataset` 等）不在本表中。
+
 | 功能 | 使用方式 | 参考文档 |
 |------|----------|----------|
 | **空间关系查询** | `scripts/query_sql.py`: query_by_spatial_relation() | 相交/包含/相离 |
@@ -694,11 +722,10 @@ batch_export(
 | **距离查询** | `scripts/query_sql.py`: query_by_distance() | 指定距离范围内 |
 | **多边形内查询** | `scripts/query_sql.py`: query_within_polygon() | 多边形内要素 |
 | **沿路径查询** | `scripts/query_sql.py`: query_along_path() | 路径缓冲区内 |
-| **批量处理** | `scripts/batch_process.py` | 见工作流 1 |
+| **批量处理** | `scripts/batch_process.py` 或 MCP `batch_import`/`batch_export` | 见工作流 1 |
 | **GUI 自动化** | `references/gui-automation.md` | pywinauto/pyautogui |
 | **3D 数据处理** | `references/3d-processing.md` | OSGB/LAS/S3M/BIM |
 | **专题图制作** | `references/mapping-thematic.md` | 单值/分级/标签专题图 |
-| **坐标系统转换** | **MCP 工具**: `reproject_dataset` | 动态投影，如 WGS84→CGCS2000 |
 | **数据质量检查** | `references/data-quality.md` | 拓扑/几何/重复/属性 |
 | **网络分析** | `references/iobjectspy-api.md` §9 | 最短路径/服务区 |
 
@@ -1117,6 +1144,109 @@ spy.flood_analysis(
   ├─ iObjectsPy not found → 检查安装路径
   ├─ Java path invalid → 检查 Java 路径
   └─ License not found → 检查 License 目录
+```
+
+### 工作流 12: 坐标系查看与转换
+
+**场景**: 检查数据坐标系，并转换为项目统一坐标系
+
+```
+步骤 1: 查看原始坐标系
+  → MCP: get_coordinate_system(
+        datasource_path="D:/data/world.udbx",
+        dataset_name="countries"
+      )
+
+步骤 2: 坐标转换（如 WGS84→CGCS2000）
+  → MCP: reproject_dataset(
+        datasource_path="D:/data/world.udbx",
+        dataset_name="countries",
+        output_dataset="countries_cgc2000",
+        target_epsg=4490
+      )
+```
+
+### 工作流 13: 数据集创建与字段操作
+
+**场景**: 创建分析结果数据集并计算面积字段
+
+```
+步骤 1: 创建空数据集
+  → MCP: create_dataset(
+        datasource_path="D:/data/output.udbx",
+        dataset_name="analysis_results",
+        dataset_type="REGION"
+      )
+
+步骤 2: 添加字段
+  → MCP: add_field(
+        datasource_path="D:/data/output.udbx",
+        dataset_name="analysis_results",
+        field_name="area_sqkm",
+        field_type="DOUBLE"
+      )
+
+步骤 3: 计算字段值（SmArea 单位为 m²，除以 10^6 转为 km²）
+  → MCP: calculate_field(
+        datasource_path="D:/data/output.udbx",
+        dataset_name="analysis_results",
+        field_name="area_sqkm",
+        expression="SmArea / 1000000"
+      )
+```
+
+### 工作流 14: 工作空间管理与地图出图
+
+**场景**: 打开工作空间、添加图层、导出地图图片
+
+```
+步骤 1: 打开工作空间
+  → MCP: open_workspace(workspace_path="D:/data/project.smwu")
+
+步骤 2: 获取工作空间信息（数据源列表、地图列表）
+  → MCP: get_workspace_info(workspace_path="D:/data/project.smwu")
+
+步骤 3: 添加图层到地图
+  → MCP: add_layer_to_map(
+        workspace_path="D:/data/project.smwu",
+        map_name="World",
+        datasource_path="D:/data/world.udbx",
+        dataset_name="countries"
+      )
+
+步骤 4: 导出地图图片
+  → MCP: export_map_image(
+        workspace_path="D:/data/project.smwu",
+        map_name="World",
+        output_path="D:/output/world_map.png",
+        dpi=300
+      )
+
+步骤 5: 保存工作空间
+  → MCP: save_workspace(workspace_path="D:/data/project.smwu")
+```
+
+### 工作流 15: 几何转换（点→线→面）
+
+**场景**: GPS 轨迹点转线、线封闭构面
+
+```
+步骤 1: 创建/打开数据源（含轨迹点数据集 "track_points"）
+
+步骤 2: 点转线（按时间字段排序连线）
+  → MCP: dataset_point_to_line(
+        datasource_path="D:/data/tracks.udbx",
+        source_dataset="track_points",
+        result_dataset="track_line",
+        order_field="timestamp"
+      )
+
+步骤 3: 线转面（封闭区域自动构面）
+  → MCP: dataset_line_to_region(
+        datasource_path="D:/data/tracks.udbx",
+        source_dataset="track_line",
+        result_dataset="track_area"
+      )
 ```
 
 ---

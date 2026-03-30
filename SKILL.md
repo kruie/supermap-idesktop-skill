@@ -20,9 +20,9 @@ description: This skill should be used when the user wants to operate, automate,
 │   ├─ DWG/DXF → 使用 MCP: import_dwg
 │   └─ OSM → 使用 MCP: import_osm
 ├─ 单文件导出?
-│   ├─ Shapefile → 使用 MCP: export_to_shapefile
-│   ├─ GeoJSON → 使用 MCP: export_to_geojson
-│   └─ TIFF → 使用 MCP: export_to_tiff
+│   ├─ Shapefile → 使用 MCP: export_shapefile
+│   ├─ GeoJSON → 使用 MCP: export_geojson
+│   └─ TIFF → 使用 MCP: export_tiff
 ├─ 批量导入/导出?
 │   └─ 使用 scripts/batch_process.py 或循环调用 MCP 工具
 └─ 特殊格式 (OSGB/LAS/S3M)?
@@ -35,7 +35,7 @@ description: This skill should be used when the user wants to operate, automate,
 ├─ 叠加分析?
 │   ├─ 交集 → MCP: overlay (operation=INTERSECT)
 │   ├─ 并集 → MCP: overlay (operation=UNION)
-│   ├─ 裁剪 → MCP: clip
+│   ├─ 裁剪 → MCP: clip_data
 │   └─ 差集 → MCP: overlay (operation=ERASE)
 ├─ 融合 → MCP: dissolve
 ├─ 核密度分析 → MCP: kernel_density
@@ -72,7 +72,39 @@ description: This skill should be used when the user wants to operate, automate,
 ├─ 数据质量检查 → references/data-quality.md
 ├─ SQL 属性查询 → scripts/query_sql.py
 ├─ 空间查询 → scripts/query_sql.py
-└─ 工作空间管理 → iObjectsPy API
+└─ 工作空间管理 → MCP: open_workspace / save_workspace / get_workspace_info
+
+坐标系统
+├─ 查看坐标系 → MCP: get_coordinate_system
+└─ 坐标转换 → MCP: reproject_dataset
+
+数据集操作
+├─ 创建数据集 → MCP: create_dataset
+├─ 复制数据集 → MCP: copy_dataset
+├─ 追加数据集 → MCP: append_to_dataset
+├─ 添加字段 → MCP: add_field
+└─ 计算字段 → MCP: calculate_field
+
+几何转换
+├─ 点转线 → MCP: dataset_point_to_line
+├─ 线转面 → MCP: dataset_line_to_region
+└─ 面转线 → MCP: dataset_region_to_line
+
+地图制图（补充）
+├─ 添加图层 → MCP: add_layer_to_map
+├─ 导出地图图片 → MCP: export_map_image
+└─ 生成瓦片 → MCP: generate_map_tiles [iServer]
+
+工具函数
+├─ 计算距离 → MCP: compute_distance
+└─ 计算面积 → MCP: compute_geodesic_area
+
+数据导入（补充）
+└─ ESRI GDB → MCP: import_gdb
+
+环境诊断
+├─ 健康检查 → MCP: check_mcp_health
+└─ 环境信息 → MCP: get_environment_info
 
 地图制图
 ├─ 创建地图 → MCP: create_map
@@ -103,8 +135,8 @@ SuperMap iDesktopX 自动化采用 **MCP + Skill 双层架构**:
 ├─────────────────────────────────────────────────────┤
 │                                                      │
 │  MCP Server (核心工具层 - 已配置可用)                │
-│  ├─ 55 个标准化工具 (数据操作、空间分析、地图制图)    │
-│  ├─ 通过 mcp_call_tool 函数调用                     │
+│  ├─ 68 个标准化工具（iDesktopX 58 + iServer 10）        │
+│  ├─ 通过 mcp:// 前缀调用                            │
 │  └─ 无需初始化,直接可用                              │
 │                                                      │
 │  Skill (智能指导层 - 本文档)                        │
@@ -129,7 +161,6 @@ SuperMap iDesktopX 自动化采用 **MCP + Skill 双层架构**:
 | 复杂多步骤工作流 | **MCP + Skill** | 组合工具,清晰流程 |
 | 3D 数据处理 (OSGB/LAS) | **iObjectsPy API** | MCP 未覆盖 |
 | GUI 操作可视化 | **iDesktopX GUI** | 直观交互 |
-| 属性查询筛选 | **iObjectsPy API** | MCP 缺少 SQL 查询 |
 
 ---
 
@@ -173,7 +204,7 @@ SuperMap iDesktopX 自动化采用 **MCP + Skill 双层架构**:
       )
 
 步骤 4: 导出结果
-  → MCP: export_to_geojson(
+  → MCP: export_geojson(
         datasource_name="output.udbx",
         dataset_name="cities_buffer",
         target_path="D:/output/cities_buffer.geojson"
@@ -221,7 +252,7 @@ batch_export(
       )
 
 步骤 3: 叠加分析 (裁剪)
-  → MCP: clip(
+  → MCP: clip_data(
         source_datasource="udbx",
         source_dataset="roads",
         clip_datasource="udbx",
@@ -230,7 +261,7 @@ batch_export(
       )
 
 步骤 4: 导出结果
-  → MCP: export_to_shapefile(
+  → MCP: export_shapefile(
         datasource_name="udbx",
         dataset_name="roads_in_city",
         target_path="D:/output/roads_in_city.shp"
@@ -268,7 +299,7 @@ batch_export(
       )
 
 步骤 4: 导出为 GeoTIFF
-  → MCP: export_to_tiff(
+  → MCP: export_tiff(
         datasource_name="terrain.udbx",
         dataset_name="slope",
         target_path="D:/output/slope.tif"
@@ -331,7 +362,7 @@ batch_export(
       )
 
 步骤 3: 导出结果
-  → MCP: export_to_geojson(
+  → MCP: export_geojson(
         datasource_name="buffer.udbx",
         dataset_name="multi_buffer",
         target_path="D:/output/multi_buffer.geojson"
@@ -526,7 +557,7 @@ batch_export(
       )
 
 步骤 5: 导出航线文件（用于无人机飞控）
-  → MCP: export_to_geojson(
+  → MCP: export_geojson(
         dataset_name=flight_path,
         target_path="flight_path.geojson"
       )
@@ -561,9 +592,9 @@ batch_export(
 ### 数据导出
 | 工具 | 输出格式 |
 |------|----------|
-| `export_to_shapefile` | Shapefile |
-| `export_to_geojson` | GeoJSON |
-| `export_to_tiff` | GeoTIFF |
+| `export_shapefile` | Shapefile |
+| `export_geojson` | GeoJSON |
+| `export_tiff` | GeoTIFF |
 
 ### 几何操作
 | 工具 | 功能 | 关键参数 |
@@ -571,7 +602,7 @@ batch_export(
 | `create_buffer` | 单级缓冲区 | distance, unit |
 | `create_multi_buffer` | 多级缓冲区 | buffer_distances (数组) |
 | `overlay` | 叠加分析 | operation (INTERSECT/UNION/IDENTITY/ERASE/UPDATE) |
-| `clip` | 裁剪 | clip_dataset |
+| `clip_data` | 裁剪 | clip_dataset |
 | `dissolve` | 融合 | dissolve_field |
 
 ### 空间分析
@@ -592,6 +623,65 @@ batch_export(
 | `create_map` | 创建新地图 |
 | `list_maps` | 列出所有地图 |
 | `get_map_info` | 获取地图详细信息 |
+| `add_layer_to_map` | 向地图添加图层 |
+| `export_map_image` | 导出地图为 PNG/JPG 图片 |
+| `generate_map_tiles` | 生成地图瓦片缓存 [iServer] |
+
+### 工作空间管理
+| 工具 | 用途 |
+|------|------|
+| `open_workspace` | 打开工作空间文件 (.smwu/.sxwu) |
+| `save_workspace` | 保存/另存为工作空间 |
+| `get_workspace_info` | 获取数据源、地图、场景列表 |
+
+### 坐标系统
+| 工具 | 用途 |
+|------|------|
+| `get_coordinate_system` | 查看数据集的坐标系、EPSG 代码、坐标范围 |
+| `reproject_dataset` | 坐标转换（如 WGS84→CGCS2000） |
+
+### 数据集管理
+| 工具 | 用途 |
+|------|------|
+| `create_dataset` | 创建空数据集（点/线/面/文本/属性表） |
+| `copy_dataset` | 复制数据集到同/不同数据源 |
+| `append_to_dataset` | 追加要素到目标数据集 |
+
+### 字段操作
+| 工具 | 用途 |
+|------|------|
+| `add_field` | 为数据集添加新字段 |
+| `calculate_field` | 批量计算赋值（支持表达式） |
+
+### 几何转换
+| 工具 | 用途 |
+|------|------|
+| `dataset_point_to_line` | 点转线（按字段排序连线） |
+| `dataset_line_to_region` | 线转面（封闭区域构面） |
+| `dataset_region_to_line` | 面转线（提取边界） |
+
+### 工具函数
+| 工具 | 用途 |
+|------|------|
+| `compute_distance` | 计算两点间距离（投影/地理坐标） |
+| `compute_geodesic_area` | 计算球面面积（平方米） |
+
+### 环境诊断
+| 工具 | 用途 |
+|------|------|
+| `check_mcp_health` | MCP 健康检查（不依赖初始化） |
+| `get_environment_info` | 获取环境信息（路径/线程数） |
+| `initialize_supermap` | 手动初始化 iObjectsPy 连接 |
+
+### 其他分析工具
+| 工具 | 用途 |
+|------|------|
+| `create_thiessen_polygons` | 创建泰森多边形（Voronoi 图） |
+| `aggregate_points` | 点聚合分析 |
+| `reclassify` | 栅格重分类 |
+| `import_gdb` | 导入 ESRI FileGDB |
+| `batch_import` | 批量导入（Shapefile/GeoJSON/CSV/KML/DWG 混合） |
+| `batch_export` | 批量导出（Shapefile/GeoJSON/KML） |
 
 ---
 
@@ -608,10 +698,9 @@ batch_export(
 | **GUI 自动化** | `references/gui-automation.md` | pywinauto/pyautogui |
 | **3D 数据处理** | `references/3d-processing.md` | OSGB/LAS/S3M/BIM |
 | **专题图制作** | `references/mapping-thematic.md` | 单值/分级/标签专题图 |
-| **坐标系统转换** | `references/mapping-thematic.md` §5 | `spy.prj_coord_sys_trans` |
+| **坐标系统转换** | **MCP 工具**: `reproject_dataset` | 动态投影，如 WGS84→CGCS2000 |
 | **数据质量检查** | `references/data-quality.md` | 拓扑/几何/重复/属性 |
 | **网络分析** | `references/iobjectspy-api.md` §9 | 最短路径/服务区 |
-| **工作空间管理** | iObjectsPy API | Workspace 类 |
 
 ---
 
@@ -1013,6 +1102,25 @@ spy.flood_analysis(
 
 ## FAQ
 
+### 工作流 11: 环境诊断（推荐首次使用时执行）
+
+**场景**: 验证 MCP Server 是否正常工作
+
+```
+步骤 1: 健康检查
+  → MCP: check_mcp_health()
+
+步骤 2: （如果健康检查失败）查看环境信息
+  → MCP: get_environment_info()
+
+步骤 3: 根据错误信息排查
+  ├─ iObjectsPy not found → 检查安装路径
+  ├─ Java path invalid → 检查 Java 路径
+  └─ License not found → 检查 License 目录
+```
+
+---
+
 **Q: "MCP 工具找不到"错误**  
 A: 检查 `~/.workbuddy/mcp.json` 中是否正确配置了 supermap 服务器,并重启 WorkBuddy。
 
@@ -1079,7 +1187,7 @@ A: MCP 工具适合单步操作和标准分析;复杂批处理和多步骤工作
 
 ---
 
-**Skill 版本**: v2.1
-**更新时间**: 2026-03-29
+**Skill 版本**: v3.0
+**更新时间**: 2026-03-30
 **适用版本**: SuperMap iDesktopX 2025 (11.x)
-**MCP Server 版本**: v2.1 (55 工具)
+**MCP Server 版本**: v3.0 (68 工具, 其中 iDesktopX 58 个 + iServer 10 个)

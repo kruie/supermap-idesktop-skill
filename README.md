@@ -41,7 +41,7 @@
 ## 依赖
 
 ### MCP 服务器
-- **supermap-mcp-server** v3.0+：提供 50+ GIS 工具（需单独安装）
+- **supermap-mcp-server** v3.0+：提供 68 个 GIS 工具（需单独安装）
 
 ### Python 库
 - iObjectsPy (SuperMap Python 组件)

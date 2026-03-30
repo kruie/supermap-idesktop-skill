@@ -81,23 +81,56 @@ git clone https://github.com/kruie/supermap-idesktop-skill.git ~/.workbuddy/skil
 
 ```
 supermap-idesktop-skill/
-├── SKILL.md              # Skill 主文档（决策树、工作流）
+├── SKILL.md              # Skill 主文档（决策树、工作流、FAQ）
 ├── scripts/              # 脚本工具
-│   ├── idesktop_init.py  # 环境初始化
-│   ├── idesktop_data.py  # 数据操作 API
-│   ├── query_sql.py      # SQL 查询
-│   ├── batch_process.py  # 批量处理
-│   └── three_d_analysis.py  # 三维分析
+│   ├── idesktop_init.py        # 环境初始化（v2.0，支持 iObjectsJava 回退）
+│   ├── supermap_env_config.py  # 完整环境检测与配置工具（NEW）
+│   ├── test_supermap_env.py    # 环境测试脚本，输出 JSON 报告（NEW）
+│   ├── idesktop_data.py        # 数据操作 API
+│   ├── query_sql.py            # SQL 查询
+│   ├── batch_process.py        # 批量处理
+│   └── three_d_analysis.py     # 三维分析
 ├── references/           # 参考文档
-│   ├── environment.md    # 环境配置
-│   ├── gis-knowledge.md  # GIS 知识
-│   ├── iobjectspy-api.md # API 参考
-│   ├── 3d-processing.md # 三维分析
-│   ├── mapping-thematic.md  # 地图制图
-│   ├── data-quality.md  # 数据质量检查
-│   └── gui-automation.md # GUI 自动化
+│   ├── environment.md                       # 安装路径、License 配置
+│   ├── python-iobjectsjava-integration.md  # iObjectsJava+Python 集成指南（NEW）
+│   ├── gis-knowledge.md                    # GIS 知识
+│   ├── iobjectspy-api.md                   # API 参考
+│   ├── 3d-processing.md                    # 三维分析
+│   ├── mapping-thematic.md                 # 地图制图
+│   ├── data-quality.md                     # 数据质量检查
+│   └── gui-automation.md                   # GUI 自动化
 └── README.md
 ```
+
+## Python 环境问题排查
+
+### 常见问题：iDesktopX 内置 Python 环境变量找不到
+
+iDesktopX 的内置 Python 窗口基于 **Py4J** 实现，与系统环境变量隔离。解决方案见 `references/python-iobjectsjava-integration.md`，提供三种方案：
+
+| 方案 | 适用场景 |
+|------|--------|
+| **方案 1**：内置 Python 窗口（优化版） | 快速脚本、简单数据处理 |
+| **方案 2**：通过 iObjectsJava 自建 Python 环境 | 生产环境、完全控制 |
+| **方案 3**：MCP + WorkBuddy（推荐） | Agent 自动化 |
+
+### 快速验证环境
+
+```bash
+# 测试当前环境配置
+python scripts/test_supermap_env.py
+
+# 输出 JSON 格式详细报告
+python scripts/test_supermap_env.py --json
+```
+
+### iObjectsJava 路径（默认）
+
+```
+D:\software\supermap-iobjectsjava-2025-win64-all-Bin
+```
+
+如需使用不同路径，设置环境变量 `SUPERMAP_IOBJECTSJAVA_HOME` 覆盖默认值。
 
 ## 文档
 
@@ -105,7 +138,7 @@ supermap-idesktop-skill/
 
 - **决策树**: 指导如何选择合适的工具
 - **工作流**: 10 个常见任务的标准流程
-- **FAQ**: 常见问题解答
+- **FAQ**: 常见问题解答（含 iObjectsJava 集成方案）
 
 ## 许可证
 

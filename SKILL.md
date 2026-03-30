@@ -640,6 +640,17 @@ batch_export(
    pip install .
    ```
 
+### 快速环境检查
+
+运行环境检测脚本，验证所有配置是否正常：
+
+```bash
+python scripts/test_supermap_env.py
+
+# 或输出 JSON 格式报告
+python scripts/test_supermap_env.py --json
+```
+
 ### 初始化 iObjectsPy (可选)
 
 **注意**: 使用 MCP 工具时不需要初始化 iObjectsPy,但使用 Skill 中的 scripts 时需要:
@@ -649,12 +660,25 @@ import iobjectspy as spy
 spy.set_iobjects_java_path(r"<iDesktopX_install_dir>\bin")
 ```
 
-或使用自动发现脚本:
+或使用**增强型**自动发现脚本（支持 iObjectsJava 独立运行）:
 ```python
 import sys
 sys.path.insert(0, r"<path_to_skill>\scripts")
-import idesktop_init  # 自动初始化
+import idesktop_init  # 自动初始化，支持回退机制
+
+# 或完全手动配置
+from supermap_env_config import SuperMapEnv
+env = SuperMapEnv(verbose=True)
+spy = env.init(use_iobjects_java=False)  # 或 True 使用 iObjectsJava
 ```
+
+### iDesktopX 内置 Python 环境问题排查
+
+**问题**：内置 Python 窗口中外部工具找不到，或环境变量隔离导致脚本失败
+
+**原因**：iDesktopX Python 窗口基于 Py4J 实现，与系统 Python 环境隔离
+
+**解决方案**：参考 `references/python-iobjectsjava-integration.md` 第一部分（方案 1 - 优化版）
 
 ---
 
@@ -977,6 +1001,7 @@ spy.flood_analysis(
 | 文件 | 内容 |
 |------|------|
 | `references/environment.md` | 安装路径、Python 环境配置、License 设置 |
+| `references/python-iobjectsjava-integration.md` | **NEW** iObjectsJava + Python 集成指南（解决内置 Python 环境变量问题）|
 | `references/iobjectspy-api.md` | 完整的 iObjectsPy API 参考 |
 | `references/gis-knowledge.md` | GIS 基础知识、数据结构、分析方法 |
 | `references/3d-processing.md` | **ENHANCED**: 3D 数据 + 12 种三维分析工具 + 5 个工作流 |
@@ -999,10 +1024,26 @@ pip install .
 ```
 
 **Q: "Java gateway process exited" 错误**  
-A: `set_iobjects_java_path()` 的路径不正确,必须指向包含 `SuperMap.iObjects.Java.jar` 的 `bin/` 目录。
+A: `set_iobjects_java_path()` 的路径不正确,必须指向包含 `SuperMap.iObjects.Java.jar` 的 `bin/` 目录。  
+同时确认使用 Windows 反斜杠路径：`spy.set_iobjects_java_path(r"D:\software\...\bin")`
 
 **Q: "hasp_feature_not_found" / License 错误 (独立运行时)**  
 A: 独立运行 iObjectsPy 需要单独的 iObjectsPy License。建议使用 iDesktopX 内置的 Python 窗口,它自动继承 iDesktopX License。
+
+**Q: 内置 Python 窗口找不到外部工具（ffmpeg/gdal等）**  
+A: 内置 Python 环境变量与系统隔离。在脚本开头手动注入：
+```python
+import os
+os.environ['PATH'] = r"C:\tools\your-tool\bin" + os.pathsep + os.environ.get('PATH', '')
+```
+或迁移到方案 2（自建 Python 环境）—— 参见 `references/python-iobjectsjava-integration.md`
+
+**Q: 如何通过 iObjectsJava 独立运行 Python 脚本（不依赖 iDesktopX 进程）？**  
+A: 参考 `references/python-iobjectsjava-integration.md` 方案 2，核心步骤：
+1. 确认 iObjectsJava 安装在 `D:\software\supermap-iobjectsjava-2025-win64-all-Bin`
+2. 创建 Python 虚拟环境并安装 iObjectsPy
+3. 运行 `python scripts/supermap_env_config.py` 验证配置
+4. 在脚本开头 `from supermap_env_config import SuperMapEnv; SuperMapEnv().init(use_iobjects_java=True)`
 
 **Q: 没有可用的 Python 环境**  
 A: 使用 SuperMap AI Extension 包中捆绑的 MiniConda (`support/MiniConda/conda/python.exe`)。
